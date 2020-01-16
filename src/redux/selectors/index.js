@@ -1,0 +1,1 @@
+export const selectedYear = (state) => state.selectedYear;

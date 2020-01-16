@@ -11,9 +11,10 @@ import Select from '@material-ui/core/Select';
 import InputLabel from '@material-ui/core/InputLabel';
 import MenuItem from '@material-ui/core/MenuItem';
 import TextField from '@material-ui/core/TextField';
+import Modal from '@material-ui/core/Modal';
 import ReactSelect from 'react-select';
 
-import { getYears, getMakes } from "../../redux/actionCreators/index";
+import { getYears, getMakes, getModels, setYear, getVehicleDetails } from "../../redux/actionCreators/index";
 import { connect } from "react-redux";
 
 const styles = theme => ({
@@ -32,17 +33,53 @@ const styles = theme => ({
     },
     make: {
         marginTop: "20px",
-    }
+    },
+    paper: {
+        position: 'absolute',
+        width: 400,
+        backgroundColor: theme.palette.background.paper,
+        border: '2px solid #000',
+        padding: theme.spacing(2, 4, 3),
+    },
+    modalClass: {
+        position:'absolute',
+        top:'10%',
+        left:'10%',
+        overflow:'scroll',
+        height:'100%',
+        display:'block'
+    },
 });
+
+function rand() {
+    return Math.round(Math.random() * 20) - 10;
+}
+  
+function getModalStyle() {
+    const top = 50 + rand();
+    const left = 50 + rand();
+
+    return {
+        top: `${top}%`,
+        left: `${left}%`,
+        transform: `translate(-${top}%, -${left}%)`,
+    };
+}
 
 const mapDispatchToProps = {
     getYears: getYears,
     getMakes: getMakes,
+    getModels: getModels,
+    setYear: setYear,
+    getVehicleDetails: getVehicleDetails,
 };
 
 const mapStateToProps = (state) => ({
     years: state.years,
     makes: state.makes,
+    models: state.models,
+    selectedYear: state.selectedYear,
+    vehicle: state.vehicle,
 });
 
 const Quote = function(props) {
@@ -50,16 +87,45 @@ const Quote = function(props) {
     const [country, setCountry] = React.useState('');
     const [year, setYear] = React.useState('');
     const [make, setMake] = React.useState('');
+    const [model, setModel] = React.useState('');
+    const [showDetailButton, toggleDetailButton] = React.useState(false);
+    const [modalStyle] = React.useState(getModalStyle);
+    const [open, setOpen] = React.useState(false);
+
+    const handleOpen = () => {
+        setOpen(true);
+    };
+
+    const handleClose = () => {
+        setOpen(false);
+    };
+
     const handleChange = event => {
         setCountry(event.target.value);
     };
-    const handleYearChange = event => {
-        setYear(event.target.value);
-        props.getMakes(event.target.value);
+    
+    const handleYearChange = selected => {
+        setYear(selected)
+        props.setYear(selected.value);
+        props.getMakes(selected.value);
+        setMake(null)
+        setModel(null)
+        toggleDetailButton(!showDetailButton)
     };
+    
     const handleMakeChange = selected => {
         setMake(selected);
+        props.getModels(year.value, selected.value);
+        setModel(null)
+        toggleDetailButton(!showDetailButton)
     };
+    
+    const handleModelChange = selected => {
+        setModel(selected);
+        props.getVehicleDetails(year.value, make.value, selected.value)
+        toggleDetailButton(true)
+    };
+
     useEffect(() => {
         props.getYears()
     }, []);
@@ -98,15 +164,11 @@ const Quote = function(props) {
                                     <Typography color="textSecondary" gutterBottom>
                                     Year
                                     </Typography>
-                                    <Select
-                                    value={year}
-                                    onChange={handleYearChange}
-                                    className={classes.root}
-                                    >
-                                    {props.years.map((value, index) => {
-                                        return <MenuItem key={index} value={index}>{value}</MenuItem>
-                                    })}
-                                    </Select>
+                                    <ReactSelect
+                                        value={year}
+                                        onChange={handleYearChange}
+                                        options={props.years}
+                                    />
 
                                     <Typography color="textSecondary" className={classes.make} gutterBottom>
                                     Make
@@ -116,6 +178,70 @@ const Quote = function(props) {
                                         onChange={handleMakeChange}
                                         options={props.makes}
                                     />
+
+                                    <Typography color="textSecondary" className={classes.make} gutterBottom>
+                                    Model
+                                    </Typography>
+                                    <ReactSelect
+                                        value={model}
+                                        onChange={handleModelChange}
+                                        options={props.models}
+                                    />
+
+                                    
+                                    {showDetailButton && (<Button variant="contained" color="primary" className={classes.make} onClick={handleOpen}>
+                                        Show Vehicle Details
+                                    </Button>)}
+
+                                    <Modal
+                                        aria-labelledby="simple-modal-title"
+                                        aria-describedby="simple-modal-description"
+                                        open={open}
+                                        onClose={handleClose}
+                                        className={classes.modalClass}
+                                    >
+                                        <div style={modalStyle} className={classes.paper}>
+                                            {props.vehicle.sub_models && (
+                                            <div>
+                                                <Typography color="textPrimary" gutterBottom>
+                                                    Sub Models: 
+                                                </Typography>
+                                                <Typography color="textSecondary" gutterBottom>
+                                                    {props.vehicle.sub_models && props.vehicle.sub_models.map(submodel => {return(<p>{submodel.SubModelName}</p>)})}
+                                                </Typography> 
+                                            </div>
+                                            )}
+
+                                            <Typography color="textPrimary" gutterBottom>
+                                                Car Type: 
+                                            </Typography>
+                                            <Typography color="textSecondary" gutterBottom>
+                                                {props.vehicle.type}
+                                            </Typography>
+
+                                            <Typography color="textPrimary" gutterBottom>
+                                                Transmission:
+                                            </Typography>
+                                            <Typography color="textSecondary" gutterBottom>
+                                                {props.vehicle.transmission}
+                                            </Typography>
+
+                                            <Typography color="textPrimary" gutterBottom>
+                                                Drive Type: 
+                                            </Typography>
+                                            <Typography color="textSecondary" gutterBottom>
+                                                {props.vehicle.drive_type}
+                                            </Typography>
+
+
+                                            <Typography color="textPrimary" gutterBottom>
+                                            Door Count: 
+                                            </Typography>
+                                            <Typography color="textSecondary" gutterBottom>
+                                                {props.vehicle.door_count}
+                                            </Typography>
+                                        </div>
+                                    </Modal>
                                 </Grid>
                             </Grid>
                         </CardContent>
